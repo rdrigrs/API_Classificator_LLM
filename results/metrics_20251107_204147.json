@@ -1,0 +1,64 @@
+{
+  "timestamp": "2025-11-07T20:41:47.436394",
+  "experiment_config": {
+    "num_runs": 1,
+    "total_apis": 10,
+    "model": "gemini-1.5-flash",
+    "temperature": 0.0
+  },
+  "overall_metrics": {
+    "f1_macro": 0.6462585034013605,
+    "f1_micro": 0.8,
+    "accuracy": 0.8,
+    "precision_macro": 0.6785714285714286,
+    "recall_macro": 0.6428571428571429,
+    "valid_samples": 10,
+    "total_samples": 10,
+    "krippendorff_alpha": 0.0,
+    "unique_labels_count": 6
+  },
+  "per_category_metrics": {
+    "banking": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 1
+    },
+    "client": {
+      "precision": 1.0,
+      "recall": 0.5,
+      "f1_score": 0.6666666666666666,
+      "support": 2
+    },
+    "currency": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 2
+    },
+    "other": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 1
+    },
+    "payment": {
+      "precision": 0.75,
+      "recall": 1.0,
+      "f1_score": 0.8571428571428571,
+      "support": 3
+    },
+    "savings": {
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1_score": 1.0,
+      "support": 1
+    },
+    "user-password": {
+      "precision": 0.0,
+      "recall": 0.0,
+      "f1_score": 0.0,
+      "support": 0
+    }
+  }
+}
