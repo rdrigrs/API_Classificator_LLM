@@ -86,6 +86,28 @@ Todas as configurações podem ser definidas via variáveis de ambiente ou arqui
 - `OUTPUT_DIR` (opcional) - Diretório de saída (padrão: `results`)
 - `MAX_APIS` (opcional) - Número máximo de APIs a classificar (padrão: `0` = todas). Útil para testes rápidos.
 
+## Visualização de Resultados
+
+Após executar o classificador, você pode gerar gráficos e visualizações dos resultados usando o script `visualizer.py`:
+
+```bash
+# Gerar visualizações dos resultados mais recentes
+python visualizer.py
+
+# Ou especificar um arquivo de métricas específico
+python visualizer.py results/metrics_20251107_204147.json
+```
+
+### Gráficos Gerados
+
+O visualizador gera os seguintes gráficos no diretório `results/`:
+
+1. **`overall_metrics.png`** - Métricas gerais (F1 Macro/Micro, Accuracy, Precision, Recall, Krippendorff Alpha)
+2. **`per_category_metrics.png`** - Métricas detalhadas por categoria (Precision, Recall, F1-Score, Support)
+3. **`metrics_comparison.png`** - Comparação lado a lado de Precision, Recall e F1-Score por categoria
+
+Todos os gráficos são salvos em alta resolução (300 DPI) e prontos para apresentações ou relatórios.
+
 ## Segurança
 
 - O arquivo `.env` está no `.gitignore` e não será commitado
