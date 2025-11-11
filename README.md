@@ -113,3 +113,8 @@ Todos os gráficos são salvos em alta resolução (300 DPI) e prontos para apre
 - O arquivo `.env` está no `.gitignore` e não será commitado
 - Nunca compartilhe sua chave de API
 - Use variáveis de ambiente em ambientes de produção
+
+
+## Recursos
+
+[Dataset](https://github.com/UQAR-TUW/FinTechAPIsDataset)
