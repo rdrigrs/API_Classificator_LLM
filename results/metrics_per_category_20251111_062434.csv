@@ -1,0 +1,7 @@
+category;precision;recall;f1_score;support
+banking;1.0;1.0;1.0;1
+client;1.0;0.5;0.6666666666666666;2
+currency;1.0;1.0;1.0;2
+payment;1.0;1.0;1.0;3
+savings;1.0;1.0;1.0;1
+user-password;0.0;0.0;0.0;0
