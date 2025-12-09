@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from google import genai
 from sklearn.metrics import f1_score, accuracy_score, precision_recall_fscore_support
 import krippendorff
+import time
 
 load_dotenv()
 
@@ -107,7 +108,7 @@ class APIClassifier:
             else:
                 if "404" in str(response_text) or "NOT_FOUND" in str(response_text):
                     continue
-        
+            time.sleep(10)
         print(f"Erro: Nenhum modelo disponível. Último erro: {response_text}")
         return "error: api call failed"
 
