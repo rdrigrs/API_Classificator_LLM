@@ -108,7 +108,7 @@ class APIClassifier:
             else:
                 if "404" in str(response_text) or "NOT_FOUND" in str(response_text):
                     continue
-            time.sleep(10)
+            time.sleep(13)
         print(f"Erro: Nenhum modelo disponível. Último erro: {response_text}")
         return "error: api call failed"
 
