@@ -1,6 +1,6 @@
 # API Classificator LLM
 
-Classificador de APIs FinTech usando Google Gemini LLM.
+Classificador de APIs FinTech usando LLMs (Google Gemini ou DeepSeek).
 
 ## Configuração
 
@@ -28,21 +28,55 @@ pip install -r requirements.txt
 cp env.example .env
 ```
 
-2. Edite o arquivo `.env` e adicione sua chave:
+2. Edite o arquivo `.env` e configure o provedor e a chave:
+
+**Para usar Google Gemini:**
 ```
+LLM_PROVIDER=gemini
 GEMINI_API_KEY=sua_chave_api_aqui
+```
+
+**Para usar DeepSeek:**
+```
+LLM_PROVIDER=deepseek
+DEEPSEEK_API_KEY=sua_chave_api_aqui
+```
+
+**Para usar Groq:**
+```
+LLM_PROVIDER=groq
+GROQ_API_KEY=sua_chave_api_aqui
 ```
 
 #### Opção 2: Variável de Ambiente
 
 ```bash
+# Para Gemini
+export LLM_PROVIDER="gemini"
 export GEMINI_API_KEY="sua_chave_api_aqui"
+
+# Para DeepSeek
+export LLM_PROVIDER="deepseek"
+export DEEPSEEK_API_KEY="sua_chave_api_aqui"
+
+# Para Groq
+export LLM_PROVIDER="groq"
+export GROQ_API_KEY="sua_chave_api_aqui"
 ```
 
-Para obter sua chave de API do Google Gemini:
+#### Obter Chaves de API
+
+**Google Gemini:**
 - Acesse: https://aistudio.google.com/app/apikey
 - Crie uma nova chave de API
-- Copie e cole no arquivo `.env` ou configure como variável de ambiente
+
+**DeepSeek:**
+- Acesse: https://platform.deepseek.com
+- Crie uma nova chave de API
+
+**Groq:**
+- Acesse: https://console.groq.com
+- Crie uma nova chave de API
 
 ### 3. Executar o Classificador
 
@@ -78,13 +112,20 @@ Os resultados são salvos no diretório `results/`:
 
 Todas as configurações podem ser definidas via variáveis de ambiente ou arquivo `.env`:
 
-- `GEMINI_API_KEY` (obrigatório) - Chave de API do Google Gemini
-- `DATASET_PATH` (opcional) - Caminho do dataset CSV (padrão: `fintechapis.csv`)
-- `NUM_RUNS` (opcional) - Número de execuções para confiabilidade (padrão: `5`)
-- `GEMINI_MODEL` (opcional) - Modelo do Gemini (padrão: `gemini-2.5-flash`)
-- `TEMPERATURE` (opcional) - Temperatura para geração (padrão: `0.0`)
-- `OUTPUT_DIR` (opcional) - Diretório de saída (padrão: `results`)
-- `MAX_APIS` (opcional) - Número máximo de APIs a classificar (padrão: `0` = todas). Útil para testes rápidos.
+| Variável | Obrigatório | Padrão | Descrição |
+|----------|-------------|--------|-----------|
+| `LLM_PROVIDER` | Não | `gemini` | Provedor de LLM (`gemini`, `deepseek` ou `groq`) |
+| `GEMINI_API_KEY` | Se provider=gemini | - | Chave de API do Google Gemini |
+| `DEEPSEEK_API_KEY` | Se provider=deepseek | - | Chave de API do DeepSeek |
+| `GROQ_API_KEY` | Se provider=groq | - | Chave de API do Groq |
+| `GEMINI_MODEL` | Não | `gemini-2.5-flash` | Modelo do Gemini |
+| `DEEPSEEK_MODEL` | Não | `deepseek-chat` | Modelo do DeepSeek (`deepseek-chat`, `deepseek-reasoner`) |
+| `GROQ_MODEL` | Não | `llama-3.3-70b-versatile` | Modelo do Groq (`llama-3.3-70b-versatile`, `llama-3.1-8b-instant`, `mixtral-8x7b-32768`) |
+| `DATASET_PATH` | Não | `fintechapis.csv` | Caminho do dataset CSV |
+| `NUM_RUNS` | Não | `5` | Número de execuções para confiabilidade |
+| `TEMPERATURE` | Não | `0.0` | Temperatura para geração |
+| `OUTPUT_DIR` | Não | `results` | Diretório de saída |
+| `MAX_APIS` | Não | `0` (todas) | Número máximo de APIs a classificar |
 
 ## Visualização de Resultados
 

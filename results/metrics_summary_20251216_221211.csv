@@ -1,0 +1,9 @@
+metric;value
+f1_macro;0.7045263590487169
+f1_micro;0.82
+accuracy;0.82
+precision_macro;0.6999681662272242
+recall_macro;0.7194621898569267
+krippendorff_alpha;0.0
+valid_samples;200.0
+total_samples;200.0

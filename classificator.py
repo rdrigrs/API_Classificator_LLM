@@ -3,10 +3,13 @@ import pandas as pd
 import numpy as np
 import re
 import json
+from abc import ABC, abstractmethod
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from google import genai
+from openai import OpenAI
+from groq import Groq
 from sklearn.metrics import f1_score, accuracy_score, precision_recall_fscore_support
 import krippendorff
 import time
@@ -16,13 +19,34 @@ load_dotenv()
 
 class Config:
     DATASET_PATH = os.getenv('DATASET_PATH', 'fintechapis.csv')
-    API_KEY = os.getenv('GEMINI_API_KEY', '')
+    LLM_PROVIDER = os.getenv('LLM_PROVIDER', 'gemini').lower()
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '')
+    DEEPSEEK_API_KEY = os.getenv('DEEPSEEK_API_KEY', '')
+    GROQ_API_KEY = os.getenv('GROQ_API_KEY', '')
     NUM_RUNS = int(os.getenv('NUM_RUNS', '5'))
-    MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash')
+    DEEPSEEK_MODEL = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+    GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.3-70b-versatile')
     TEMPERATURE = float(os.getenv('TEMPERATURE', '0.0'))
     OUTPUT_DIR = Path(os.getenv('OUTPUT_DIR', 'results'))
     _max_apis_env = os.getenv('MAX_APIS', '0')
     MAX_APIS = int(_max_apis_env) if _max_apis_env and _max_apis_env != '0' else None
+    
+    @classmethod
+    def get_api_key(cls):
+        if cls.LLM_PROVIDER == 'deepseek':
+            return cls.DEEPSEEK_API_KEY
+        if cls.LLM_PROVIDER == 'groq':
+            return cls.GROQ_API_KEY
+        return cls.GEMINI_API_KEY
+    
+    @classmethod
+    def get_model(cls):
+        if cls.LLM_PROVIDER == 'deepseek':
+            return cls.DEEPSEEK_MODEL
+        if cls.LLM_PROVIDER == 'groq':
+            return cls.GROQ_MODEL
+        return cls.GEMINI_MODEL
     
     CATEGORY_DEFINITIONS = """
 <categories>
@@ -63,7 +87,30 @@ class CategoryExtractor:
         return "error: no category found"
 
 
-class APIClassifier:
+class BaseClassifier(ABC):
+    def __init__(self, api_key, model=None, temperature=None):
+        self.api_key = api_key
+        self.model = model
+        self.temperature = temperature or Config.TEMPERATURE
+        self.extractor = CategoryExtractor()
+        self.validated_model = None
+    
+    @abstractmethod
+    def _try_model(self, model_name, prompt):
+        pass
+    
+    @abstractmethod
+    def classify(self, api_content):
+        pass
+    
+    def _build_prompt(self, api_content):
+        return Config.INSTRUCTIONS_TEMPLATE.format(
+            category_definitions=Config.CATEGORY_DEFINITIONS,
+            api_content=api_content
+        )
+
+
+class GeminiClassifier(BaseClassifier):
     FALLBACK_MODELS = [
         'gemini-2.5-flash',
         'gemini-2.5-pro',
@@ -73,11 +120,8 @@ class APIClassifier:
     ]
     
     def __init__(self, api_key, model=None, temperature=None):
+        super().__init__(api_key, model or Config.GEMINI_MODEL, temperature)
         self.client = genai.Client(api_key=api_key)
-        self.model = model or Config.MODEL
-        self.temperature = temperature or Config.TEMPERATURE
-        self.extractor = CategoryExtractor()
-        self.validated_model = None
     
     def _try_model(self, model_name, prompt):
         try:
@@ -91,11 +135,7 @@ class APIClassifier:
             return str(e), False
     
     def classify(self, api_content):
-        prompt = Config.INSTRUCTIONS_TEMPLATE.format(
-            category_definitions=Config.CATEGORY_DEFINITIONS,
-            api_content=api_content
-        )
-        
+        prompt = self._build_prompt(api_content)
         models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
         
         for model_name in models_to_try:
@@ -111,6 +151,105 @@ class APIClassifier:
             time.sleep(13)
         print(f"Erro: Nenhum modelo disponível. Último erro: {response_text}")
         return "error: api call failed"
+
+
+class DeepSeekClassifier(BaseClassifier):
+    FALLBACK_MODELS = [
+        'deepseek-chat',
+        'deepseek-reasoner'
+    ]
+    
+    def __init__(self, api_key, model=None, temperature=None):
+        super().__init__(api_key, model or Config.DEEPSEEK_MODEL, temperature)
+        self.client = OpenAI(api_key=api_key, base_url="https://api.deepseek.com")
+    
+    def _try_model(self, model_name, prompt):
+        try:
+            response = self.client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "Você é um classificador de APIs especializado em categorizar APIs do setor financeiro."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.temperature,
+                stream=False
+            )
+            return response.choices[0].message.content, True
+        except Exception as e:
+            return str(e), False
+    
+    def classify(self, api_content):
+        prompt = self._build_prompt(api_content)
+        models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
+        
+        for model_name in models_to_try:
+            response_text, success = self._try_model(model_name, prompt)
+            if success:
+                if self.validated_model != model_name:
+                    print(f"Usando modelo: {model_name}")
+                    self.validated_model = model_name
+                return self.extractor.extract(response_text)
+            else:
+                if "404" in str(response_text) or "model_not_found" in str(response_text).lower():
+                    continue
+            time.sleep(2)
+        print(f"Erro: Nenhum modelo disponível. Último erro: {response_text}")
+        return "error: api call failed"
+
+
+class GroqClassifier(BaseClassifier):
+    FALLBACK_MODELS = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+        'mixtral-8x7b-32768'
+    ]
+    
+    def __init__(self, api_key, model=None, temperature=None):
+        super().__init__(api_key, model or Config.GROQ_MODEL, temperature)
+        self.client = Groq(api_key=api_key)
+    
+    def _try_model(self, model_name, prompt):
+        try:
+            response = self.client.chat.completions.create(
+                model=model_name,
+                messages=[
+                    {"role": "system", "content": "Você é um classificador de APIs especializado em categorizar APIs do setor financeiro."},
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=self.temperature
+            )
+            return response.choices[0].message.content, True
+        except Exception as e:
+            return str(e), False
+    
+    def classify(self, api_content):
+        prompt = self._build_prompt(api_content)
+        models_to_try = [self.model] + [m for m in self.FALLBACK_MODELS if m != self.model]
+        
+        for model_name in models_to_try:
+            response_text, success = self._try_model(model_name, prompt)
+            if success:
+                if self.validated_model != model_name:
+                    print(f"Usando modelo: {model_name}")
+                    self.validated_model = model_name
+                return self.extractor.extract(response_text)
+            else:
+                if "404" in str(response_text) or "model_not_found" in str(response_text).lower():
+                    continue
+            time.sleep(2)
+        print(f"Erro: Nenhum modelo disponível. Último erro: {response_text}")
+        return "error: api call failed"
+
+
+def create_classifier(provider=None, api_key=None):
+    provider = provider or Config.LLM_PROVIDER
+    api_key = api_key or Config.get_api_key()
+    
+    if provider == 'deepseek':
+        return DeepSeekClassifier(api_key=api_key)
+    if provider == 'groq':
+        return GroqClassifier(api_key=api_key)
+    return GeminiClassifier(api_key=api_key)
 
 
 class MetricsCalculator:
@@ -229,7 +368,8 @@ class MetricsCalculator:
             'experiment_config': {
                 'num_runs': len(self.classification_cols),
                 'total_apis': len(self.results_df),
-                'model': Config.MODEL,
+                'provider': Config.LLM_PROVIDER,
+                'model': Config.get_model(),
                 'temperature': Config.TEMPERATURE
             },
             'overall_metrics': {
@@ -336,16 +476,27 @@ class ExperimentRunner:
         self.metrics = None
     
     def initialize_classifier(self):
-        if not self.config.API_KEY:
-            raise ValueError(
-                "Erro: A chave API do Gemini não foi configurada.\n"
-                "Configure a variável de ambiente GEMINI_API_KEY ou crie um arquivo .env com:\n"
-                "GEMINI_API_KEY=sua_chave_aqui"
-            )
+        api_key = self.config.get_api_key()
+        provider = self.config.LLM_PROVIDER
+        
+        if not api_key:
+            error_messages = {
+                'deepseek': "Erro: A chave API do DeepSeek não foi configurada.\n"
+                           "Configure a variável de ambiente DEEPSEEK_API_KEY ou crie um arquivo .env com:\n"
+                           "DEEPSEEK_API_KEY=sua_chave_aqui",
+                'groq': "Erro: A chave API do Groq não foi configurada.\n"
+                       "Configure a variável de ambiente GROQ_API_KEY ou crie um arquivo .env com:\n"
+                       "GROQ_API_KEY=sua_chave_aqui",
+                'gemini': "Erro: A chave API do Gemini não foi configurada.\n"
+                         "Configure a variável de ambiente GEMINI_API_KEY ou crie um arquivo .env com:\n"
+                         "GEMINI_API_KEY=sua_chave_aqui"
+            }
+            raise ValueError(error_messages.get(provider, error_messages['gemini']))
         try:
-            self.classifier = APIClassifier(api_key=self.config.API_KEY)
+            self.classifier = create_classifier(provider=provider, api_key=api_key)
+            print(f"Provedor LLM: {provider.upper()}")
         except Exception as e:
-            print(f"Erro: Falha ao inicializar o cliente Gemini: {e}")
+            print(f"Erro: Falha ao inicializar o cliente {provider}: {e}")
             raise
     
     def load_dataset(self):
